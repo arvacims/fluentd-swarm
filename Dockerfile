@@ -8,6 +8,7 @@ RUN buildDeps="sudo make gcc g++ libc-dev ruby-dev" \
     && sudo gem install fluent-plugin-elasticsearch         --version 3.4.2 \
     && sudo gem install fluent-plugin-record-modifier       --version 2.0.1 \
     && sudo gem install fluent-plugin-rewrite-tag-filter    --version 2.2.0 \
+    && sudo gem install fluent-plugin-prometheus            --version 1.6.1 \
     && sudo gem sources --clear-all \
     && SUDO_FORCE_REMOVE=yes \
         apt-get purge -y --auto-remove \
