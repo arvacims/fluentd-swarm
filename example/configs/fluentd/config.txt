@@ -1,0 +1,121 @@
+<system>
+    log_level           info    # debug, trace, ...
+</system>
+
+<source>
+    @type forward
+
+    port                24224
+    bind                0.0.0.0
+</source>
+
+<match **.nginx>
+    @type rewrite_tag_filter
+
+    <rule>
+        key                 source
+        pattern             /^stdout$/
+        tag                 ${tag_parts[0]}.${tag_parts[1]}.${tag_parts[2]}.nginx.access
+    </rule>
+
+    <rule>
+        key                 source
+        pattern             /^stderr$/
+        tag                 ${tag_parts[0]}.${tag_parts[1]}.${tag_parts[2]}.nginx.error
+    </rule>
+</match>
+
+<filter **.json>
+    @type parser
+
+    format              json
+    key_name            log
+    reserve_data        true
+</filter>
+
+<filter **>
+    @type record_modifier
+
+    remove_keys         log
+
+    <record>
+        host                "#{Socket.gethostname}"
+        message             "${if record.has_key?('message') then record['message'] else record['log'] end}"
+    </record>
+</filter>
+
+<filter **>
+    @type prometheus
+
+    <metric>
+        name                fluentd_input_status_num_records_total
+        type                counter
+        desc                "The total number of incoming records"
+
+        <labels>
+            tag                 "${tag}"
+            hostname            "${hostname}"
+        </labels>
+    </metric>
+</filter>
+
+<match **>
+    @type copy
+
+    <store>
+        @type elasticsearch
+
+        default_elasticsearch_version 7
+
+        scheme              http
+        host                es-proxy
+        port                80
+
+        reload_connections  false
+
+        logstash_format     true
+        logstash_prefix     fluentd-example
+        logstash_dateformat %Y%m%d
+
+        include_tag_key     true
+        type_name           _doc
+        tag_key             @log_name
+
+        flush_interval      10s
+
+        log_es_400_reason   true
+    </store>
+
+    <store>
+        @type prometheus
+
+        <metric>
+            name                fluentd_output_status_num_records_total
+            type                counter
+            desc                "The total number of outgoing records"
+
+            <labels>
+                tag                 "${tag}"
+                hostname            "${hostname}"
+            </labels>
+        </metric>
+    </store>
+</match>
+
+<source>
+    @type prometheus
+
+    bind                0.0.0.0
+    port                24231
+    metrics_path        /metrics
+</source>
+
+<source>
+    @type prometheus_output_monitor
+
+    interval            10
+
+    <labels>
+        hostname            "${hostname}"
+    </labels>
+</source>

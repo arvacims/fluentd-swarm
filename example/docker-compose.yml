@@ -1,0 +1,102 @@
+version: "2.4"
+
+
+networks:
+
+  internal:
+    driver: "bridge"
+
+
+volumes:
+
+  elasticsearch-data:
+    driver: "local"
+
+
+services:
+
+  fluentd:
+    image: "arvacims/fluentd-swarm:1.11.3"
+    networks:
+      - "internal"
+    # Expose the ports to the host (as the Docker logging driver runs on the host).
+    # TODO: Do we need both TCP and UDP?
+    ports:
+      - "24224:24224/tcp"
+      - "24224:24224/udp"
+    volumes:
+      - "./configs/fluentd/config.txt:/fluentd/etc/fluent.conf:ro"
+    # TODO: Balance buffer size and memory limit!
+    mem_limit: "640m"
+    restart: "always"
+    depends_on:
+      - "es-proxy"
+
+  dummy:
+    image: "nginx:1.15.3-alpine"
+    networks:
+      - "internal"
+    # Use e.g. "curl http://localhost:8080/" to generate some log record that is sent to fluentd.
+    ports:
+      - "8080:80/tcp"
+    mem_limit: "24m"
+    restart: "always"
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: "localhost:24224"
+        fluentd-async-connect: "true"
+        fluentd-retry-wait: "15s"
+        fluentd-sub-second-precision: "true"
+        tag: "example.test.dummy.nginx"
+
+  # see "https://www.elastic.co/guide/en/elasticsearch/reference/7.7/docker.html"
+  elasticsearch:
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.7.1"
+    environment:
+      - "discovery.type=single-node"
+      - "bootstrap.memory_lock=true"
+      - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
+    networks:
+      - "internal"
+    volumes:
+      - "elasticsearch-data:/usr/share/elasticsearch/data"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+      nproc:
+        soft: 4096
+        hard: 4096
+    mem_limit: "8g"
+    restart: "always"
+    stop_grace_period: "1m"
+
+  # see "https://www.elastic.co/guide/en/kibana/7.7/docker.html"
+  kibana:
+    image: "docker.elastic.co/kibana/kibana:7.7.1"
+    environment:
+      - "NODE_OPTIONS=--max-old-space-size=896"
+    networks:
+      - "internal"
+    ports:
+      - "5601:5601/tcp"
+    mem_limit: "1g"
+    restart: "always"
+    stop_grace_period: "1m"
+    depends_on:
+      - "elasticsearch"
+
+  es-proxy:
+    image: "nginx:1.15.3-alpine"
+    networks:
+      - "internal"
+    volumes:
+      - "./configs/es-proxy/config.nginx:/etc/nginx/nginx.conf:ro"
+    mem_limit: "24m"
+    restart: "always"
+    depends_on:
+      - "elasticsearch"
