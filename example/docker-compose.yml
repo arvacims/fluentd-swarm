@@ -26,7 +26,7 @@ services:
       - "24224:24224/udp"
     volumes:
       - "./configs/fluentd/config.txt:/fluentd/etc/fluent.conf:ro"
-    # TODO: Balance buffer size and memory limit!
+    # TODO: Balance buffer settings and memory limit!
     mem_limit: "640m"
     restart: "always"
     depends_on:
