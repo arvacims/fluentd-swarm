@@ -11,19 +11,35 @@
     bind                0.0.0.0
 </source>
 
-<match **.nginx>
+<match **.nginx-plain>
     @type rewrite_tag_filter
 
     <rule>
         key                 source
         pattern             /^stdout$/
-        tag                 ${tag_parts[0]}.${tag_parts[1]}.${tag_parts[2]}.nginx.access
+        tag                 ${tag_parts[0]}.${tag_parts[1]}.${tag_parts[2]}.access.plain
     </rule>
 
     <rule>
         key                 source
         pattern             /^stderr$/
-        tag                 ${tag_parts[0]}.${tag_parts[1]}.${tag_parts[2]}.nginx.error
+        tag                 ${tag_parts[0]}.${tag_parts[1]}.${tag_parts[2]}.error.plain
+    </rule>
+</match>
+
+<match **.nginx-json>
+    @type rewrite_tag_filter
+
+    <rule>
+        key                 source
+        pattern             /^stdout$/
+        tag                 ${tag_parts[0]}.${tag_parts[1]}.${tag_parts[2]}.access.json
+    </rule>
+
+    <rule>
+        key                 source
+        pattern             /^stderr$/
+        tag                 ${tag_parts[0]}.${tag_parts[1]}.${tag_parts[2]}.error.plain
     </rule>
 </match>
 
@@ -82,8 +98,8 @@
         include_tag_key     true
         tag_key             @log_name
 
-        flush_interval      10s
-        buffer_chunk_limit  2m
+        flush_interval      1s
+        buffer_chunk_limit  8m
 
         suppress_type_name  true
         log_es_400_reason   true
